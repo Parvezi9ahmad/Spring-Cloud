@@ -11,6 +11,8 @@ import com.bharath.springcloud.Entity.Product;
 import com.bharath.springcloud.repos.ProductRepo;
 import com.bharath.springcloud.restClients.CouponClient;
 
+import io.github.resilience4j.retry.annotation.Retry;
+
 @RestController
 @RequestMapping("/productapi")
 public class ProductRestController {
@@ -22,6 +24,7 @@ public class ProductRestController {
 	private CouponClient couponClient;
 
 	@RequestMapping(value = "/products", method = RequestMethod.POST)
+	@Retry(name = "product-api", fallbackMethod = "handleError")
 	public Product create(@RequestBody Product product) {
 		Coupon coupon = couponClient.getCoupon(product.getCouponCode());
 		product.setPrice(product.getPrice().subtract(coupon.getDiscount()));
@@ -29,8 +32,9 @@ public class ProductRestController {
 
 	}
 
-	public Product sendErrorResponse(Product product) {
+	public Product handleError(Product product, Exception exception) {
+		System.out.println("Inside handle error");
 		return product;
-
 	}
+
 }

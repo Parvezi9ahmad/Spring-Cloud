@@ -9,6 +9,6 @@ import com.bharath.springcloud.Entity.Coupon;
 @FeignClient("GATEWAY-SERVICE")
 public interface CouponClient {
 
-	@GetMapping("/couponapi/coupons/{code}")
+	@GetMapping("/couponap/coupons/{code}")
 	Coupon getCoupon(@PathVariable("code") String code);
 }
