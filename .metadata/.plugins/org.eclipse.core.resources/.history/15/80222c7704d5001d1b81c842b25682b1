@@ -1,0 +1,5 @@
+package com.bharath.springcloud.repos;
+
+public interface ProductRepo {
+
+}

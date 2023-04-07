@@ -1,0 +1,5 @@
+package com.bharath.springcloud.entity;
+
+public class Coupon {
+
+}
