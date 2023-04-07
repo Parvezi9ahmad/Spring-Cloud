@@ -1,0 +1,9 @@
+package com.bharath.springcloud.restClients;
+
+import org.springframework.cloud.openfeign.FeignClient;
+
+@FeignClient("COUPON-SERVICE")
+public interface CouponClient {
+
+	Coupon getCoupon(String code);
+}

@@ -1,0 +1,5 @@
+package com.bharath.springcloud.restClients;
+
+public interface CouponClient {
+
+}
