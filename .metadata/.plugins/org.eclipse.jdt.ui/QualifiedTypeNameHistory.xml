@@ -24,4 +24,6 @@
     <fullyQualifiedTypeName name="com.bharath.springcloud.restClients.CouponClient"/>
     <fullyQualifiedTypeName name="org.springframework.cloud.openfeign.EnableFeignClients"/>
     <fullyQualifiedTypeName name="org.springframework.cloud.netflix.eureka.EnableEurekaClient"/>
+    <fullyQualifiedTypeName name="org.springframework.stereotype.Component"/>
+    <fullyQualifiedTypeName name="io.github.resilience4j.retry.annotation.Retry"/>
 </qualifiedTypeNameHistroy>
