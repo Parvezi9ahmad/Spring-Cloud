@@ -18,6 +18,7 @@ import io.github.resilience4j.retry.annotation.Retry;
 @RestController
 @RequestMapping("/productapi")
 @RefreshScope
+
 public class ProductRestController {
 
 	@Autowired
@@ -42,7 +43,6 @@ public class ProductRestController {
 	public String getProp() {
 		return this.prop;
 	}
-
 	public Product handleError(Product product, Exception exception) {
 		System.out.println("Inside handle error");
 		return product;
