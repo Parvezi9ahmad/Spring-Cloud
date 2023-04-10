@@ -1,5 +1,0 @@
-package com.bharath.springcloud.controller;
-
-public class ProductRestController {
-
-}
