@@ -1,0 +1,251 @@
+SPRING CLOUD
+//we have two application coupon and product whci are register in eureka service discovery
+
+HOW TO ADD FEIGN CLIENT IN PRODUCT SERVICE
+
+//ADD the open feign dependency in pom.xml file
+<dependency>
+	<groupId>org.springframework.cloud</groupId>
+	<artifactId>spring-cloud-starter-openfeign</artifactId>
+</dependency>
+
+//add annotation at main class
+@EnableFeignClients
+
+//create a class inside entity package
+public class Coupon {
+	private Long id;
+	private String code;
+	private BigDecimal discount;
+	private String expDate;
+
+//write this on Product entity class
+@Transient
+	private String couponCode;
+
+//write one interface inside product service that looks like coupon service endpoint methods
+@FeignClient("COUPON-SERVICE")
+public interface CouponClient {
+
+	@GetMapping("/couponapi/coupons/{code}")
+	Coupon getCoupon(@PathVariable("code") String code);
+}
+
+//write inside controller
+@RestController
+@RequestMapping("/productapi")
+public class ProductRestController {
+
+	@Autowired
+	private ProductRepo repo;
+
+	@Autowired
+	private CouponClient couponClient;
+
+	@RequestMapping(value = "/products", method = RequestMethod.POST)
+	public Product create(@RequestBody Product product) {
+		Coupon coupon = couponClient.getCoupon(product.getCouponCode());
+		product.setPrice(product.getPrice().subtract(coupon.getDiscount()));
+		return repo.save(product);
+
+	}
+
+	public Product sendErrorResponse(Product product) {
+		return product;
+
+	}
+
+
+CLIENT SIDE LOAD BALANCING
+//add the dependency in pom.xml file of product service
+<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-loadbalancer</artifactId>
+		</dependency>
+
+//run the coupon service with different port
+
+API GATEWAY
+create the project APIGATEWAY service
+//add the dpepedency gateway and eureka client
+<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-gateway</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+		</dependency>
+
+//in properties file make gateway eureka client and routes the product and coupon service
+spring.application.name=gateway-service
+eureka.client.service-url.defaultZone=http://localhost:8761/eureka/
+server.port=9095
+
+spring.cloud.gateway.routes[0].id=couponModule
+spring.cloud.gateway.routes[0].uri=lb://COUPON-SERVICE
+spring.cloud.gateway.routes[0].predicates[0]=Path=/couponapi/**
+
+spring.cloud.gateway.routes[1].id=productModule
+spring.cloud.gateway.routes[1].uri=lb://PRODUCT-SERVICE
+spring.cloud.gateway.routes[1].predicates[0]=Path=/productapi/**
+
+//in product service feign client annotation replace to "COUPON-SERVICE" to "GATEWAY-SERVICE"
+
+//product service will send the request to api gateway and api gateway will not expose the service endpoint
+http://localhost:9095/productapi/products
+
+//addiing filter in api gateway
+@Component
+public class Myfilter implements GlobalFilter {
+
+	@Override
+	public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+		System.out.println("Pre Processing logic goes here :" + exchange.getRequest());
+		return chain.filter(exchange).then(Mono.fromRunnable(() -> {
+			System.out.println("Post Processing logic goes here :" + exchange.getResponse());
+		}));
+	}
+
+
+RESILENCE 4J
+//add the dependency in product service
+<dependency>
+    <groupId>io.github.resilience4j</groupId>
+    <artifactId>resilience4j-spring-boot2</artifactId>
+</dependency>
+
+//use annotation at product service endpoint method
+@Retry(name="product-api")
+
+//once server service failed then it will allow 3 attempts then show error we can customized it in properties file
+resilience4j.retry.instances.product-api.max-attempts=2
+resilience4j.retry.instances.product-api.wait-duration=3s
+
+//how to test
+//give wrong endpoint method name to feign client call
+
+//use fallback method
+//add the product service controller endpoint method
+@Retry(name = "product-api", fallbackMethod = "handleError")
+
+//write one fallback method
+public Product handleError(Product product, Exception exception) {
+		System.out.println("Inside handle error");
+		return product;
+	}
+
+
+SLEUTH AND ZIPKIN
+//add these ddependencies in api gateway.coupon and product services
+<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-sleuth</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-sleuth-zipkin</artifactId>
+		</dependency>
+
+//these two commands are most important for sownloading zipkin jar and run the jar.
+//before that download curl for windows unzip it and go inside bin and open command promt and run this
+curl -sSL https://zipkin.io/quickstart.sh | bash -s
+
+java -jar zipkin.jar
+
+//zipkin server port number
+localhost:9411/zipkin/
+
+
+CONFIG SERVER
+//create config server add the config server depedendency
+<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-config-server</artifactId>
+		</dependency>
+
+//enable main class as config server using annotation
+@EnableConfigServer
+
+//write inside application.properties file
+spring.application.name=config-server
+server.port=8888
+
+
+//create the properties file under c->user->name->localgitrepo
+//write this on this file and commit the code in local git repo
+management.security.enabled=false
+application.url=http://local
+
+//change in the config server properties file
+spring.application.name=config-server
+server.port=8888
+#spring.cloud.config.server.git.uri=file:///${user.home}/localgitrepo
+#spring.cloud.config.server.git.uri=file://c:/Users/91985/localgitrepo
+#use deafult as master otherwise spring will consider default main branch
+spring.cloud.config.server.git.default-label=master
+spring.cloud.config.server.git.uri=https://github.com/Parvezi9ahmad/t
+
+//use this endpoint to hit config server.there is no profile is there you can use default
+http://localhost:8888/product-service/default
+
+//for remote github repo use this
+spring.cloud.config.server.git.uri=https://github.com/Parvezi9ahmad/t
+
+create config client
+//for that add the depedendency in product service to make it config client
+<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-config</artifactId>
+		</dependency>
+		<dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-bootstrap</artifactId>
+        </dependency>
+
+ //change the application.properties file inot bootstrp.properties file
+ //bydefault profile points to default properties file if we give profiles.active=dev then it ppints to dev 
+ spring.application.name=product-service
+spring.cloud.config.uri=http://localhost:8888
+spring.profiles.active=dev
+
+
+SPRING CLOUD BUS
+//add this on product-service.properties file which is on c drive location
+com.parvez.springcloud.prop=local1
+//once changes in properties file it will reflect ,no need to run the application
+management.endpoints.web.exposure.include=*
+
+//add depdendency in product service
+<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+
+//mark at product controller
+@RefreshScope
+
+//add this on productcontroller
+@Value("${com.parvez.springcloud.prop}")
+	private String prop;
+
+@RequestMapping(value = "/prop", method = RequestMethod.GET)
+	public String getProp() {
+		return this.prop;
+	}
+
+//actuator have refresh issue if two services are running with different port and we changes properties file first we need to callactuator refresh endpoint using post request after that it will reflect to particular service that port number envolves in actuator endpoint for this issue cloud bus comes into the picture
+
+FOR BUS
+//before that download and install erl and rabbitmq
+//add this dependency in product service pom.xml file
+<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-bus-amqp</artifactId>
+		</dependency>
+
+//add in bootstrap.properties file in product service
+spring.rabbitmq.host=localhost
+spring.rabbitmq.port=5672
+spring.rabbitmq.username=guest
+spring.rabbitmq.password=guest
